@@ -1,1 +1,1 @@
-# HyperX Mouse Driver
+# HyperX Mouse Software
