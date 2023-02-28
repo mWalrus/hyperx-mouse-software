@@ -85,25 +85,31 @@ impl<C: UsbContext> Mouse<C> {
         Ok(())
     }
 
-    fn is_valid_profile_id(id: u8) -> Result<(), &'static str> {
-        if id >= 4 {
+    fn is_valid_profile_id(&self, id: usize) -> Result<(), &'static str> {
+        if id >= self.dpi_profiles.len() {
             return Err("Invalid Profile ID");
         }
         Ok(())
     }
 
     fn set_dpi_for_profile(&mut self, id: u8, dpi: u8) -> RusbResult<()> {
-        Self::is_valid_profile_id(id).unwrap();
         let i = Into::<usize>::into(id);
+
+        self.is_valid_profile_id(i).unwrap();
+
         self.write(Command::set_dpi_profile_dpi(id, dpi))?;
+
         self.dpi_profiles[i].dpi = dpi;
         Ok(())
     }
 
     fn set_color_for_profile(&mut self, id: u8, color: [u8; 3]) -> RusbResult<()> {
-        Self::is_valid_profile_id(id).unwrap();
         let i = Into::<usize>::into(id);
+
+        self.is_valid_profile_id(i).unwrap();
+
         self.write(Command::set_dpi_profile_color(id, color))?;
+
         self.dpi_profiles[i].color = color;
         Ok(())
     }
