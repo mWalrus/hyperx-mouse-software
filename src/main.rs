@@ -2,9 +2,9 @@ mod command;
 mod mouse;
 
 use mouse::Mouse;
-use rusb::{Context, Result, UsbContext};
+use rusb::{Context, UsbContext};
 
-use crate::mouse::MouseAction;
+use crate::mouse::{MouseAction, MouseError};
 
 const ID_VENDOR: u16 = 0x03f0;
 const ID_PRODUCT: u16 = 0x048e;
@@ -12,7 +12,7 @@ const ID_PRODUCT: u16 = 0x048e;
 // hard code the color for now
 const COLOR: [u8; 3] = [0xC7, 0x00, 0xC6];
 
-fn main() -> Result<()> {
+fn main() {
     match Context::new() {
         Ok(mut ctx) => match open_mouse_device(&mut ctx) {
             Some(mut mouse) => {
@@ -21,19 +21,27 @@ fn main() -> Result<()> {
                     mouse.descriptor.vendor_id(),
                     mouse.descriptor.product_id()
                 );
-                mouse.perform_action(MouseAction::SetColor(COLOR))?;
-                // profile 2
-                mouse.perform_action(MouseAction::SetDPIProfileDPI(0x01, 0x04))?;
-                mouse.perform_action(MouseAction::SetDPIProfileColor(0x01, [0xf4, 0x78, 0x35]))?;
+                let mut perform_mouse_actions = || -> Result<(), MouseError> {
+                    mouse.perform_action(MouseAction::SetColor(COLOR))?;
+                    // profile 2
+                    mouse.perform_action(MouseAction::SetDPIProfileDPI(0x01, 0x04))?;
+                    mouse.perform_action(MouseAction::SetDPIProfileColor(
+                        0x01,
+                        [0xf4, 0x78, 0x35],
+                    ))?;
 
-                mouse.perform_action(MouseAction::Persist)?;
+                    mouse.perform_action(MouseAction::Persist)?;
+                    Ok(())
+                };
+
+                if let Err(e) = perform_mouse_actions() {
+                    eprintln!("{e:?}");
+                }
             }
-            None => println!("Failed to open device {ID_VENDOR:04x}:{ID_PRODUCT:04x}"),
+            None => eprintln!("Failed to open device {ID_VENDOR:04x}:{ID_PRODUCT:04x}"),
         },
         Err(e) => panic!("Could not initialize libusb: {e}"),
     }
-
-    Ok(())
 }
 
 fn open_mouse_device<C: UsbContext>(ctx: &mut C) -> Option<Mouse<C>> {

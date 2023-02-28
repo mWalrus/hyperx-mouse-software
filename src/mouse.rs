@@ -1,7 +1,28 @@
 use std::time::Duration;
 
 use crate::command::Command;
-use rusb::{Device, DeviceDescriptor, DeviceHandle, Result as RusbResult, UsbContext};
+use rusb::{Device, DeviceDescriptor, DeviceHandle, UsbContext};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum MouseError {
+    #[error("Failed to detach kernel driver: {0:?}")]
+    DetachKernelDriver(rusb::Error),
+    #[error("Failed to attach kernel driver: {0:?}")]
+    AttachKernelDriver(rusb::Error),
+    #[error("Failed to claim the device interface: {0:?}")]
+    ClaimInterface(rusb::Error),
+    #[error("Failed to release the device interface: {0:?}")]
+    ReleaseInterface(rusb::Error),
+    #[error("Failed to set alternative active setting for device interface: {0:?}")]
+    AlternateSetting(rusb::Error),
+    #[error("Failed to write to device: {0:?}")]
+    WriteError(rusb::Error),
+    #[error("The specified dpi profile is invalid")]
+    InvalidDPIProfile,
+}
+
+type MouseResult<T> = Result<T, MouseError>;
 
 pub enum MouseAction {
     SetColor([u8; 3]),
@@ -58,68 +79,72 @@ impl<C: UsbContext> Mouse<C> {
         }
     }
 
-    fn detach(&mut self) -> RusbResult<()> {
-        self.handle.detach_kernel_driver(self.iface)?;
-        self.handle.claim_interface(self.iface)?;
-        self.handle.set_alternate_setting(self.iface, 0)?;
+    fn detach(&mut self) -> MouseResult<()> {
+        self.handle
+            .detach_kernel_driver(self.iface)
+            .map_err(MouseError::DetachKernelDriver)?;
+        self.handle
+            .claim_interface(self.iface)
+            .map_err(MouseError::ClaimInterface)?;
+        self.handle
+            .set_alternate_setting(self.iface, 0)
+            .map_err(MouseError::AlternateSetting)?;
         Ok(())
     }
 
-    fn release(&mut self) -> RusbResult<()> {
-        self.handle.release_interface(self.iface)?;
-        self.handle.attach_kernel_driver(self.iface)?;
+    fn release(&mut self) -> MouseResult<()> {
+        self.handle
+            .release_interface(self.iface)
+            .map_err(MouseError::ReleaseInterface)?;
+        self.handle
+            .attach_kernel_driver(self.iface)
+            .map_err(MouseError::AttachKernelDriver)?;
         Ok(())
     }
 
-    fn write(&mut self, cmd: Command) -> RusbResult<()> {
+    fn write(&mut self, cmd: Command) -> MouseResult<()> {
         println!("Writing data: {:02x?}", &cmd.data);
-        let byte_count =
-            self.handle
-                .write_interrupt(self.iface, &cmd.data, Duration::from_millis(1000))?;
+        let byte_count = self
+            .handle
+            .write_interrupt(self.iface, &cmd.data, Duration::from_millis(1000))
+            .map_err(MouseError::WriteError)?;
         println!("Wrote {byte_count} bytes");
         Ok(())
     }
 
-    fn set_color(&mut self, color: [u8; 3]) -> RusbResult<()> {
+    fn set_color(&mut self, color: [u8; 3]) -> MouseResult<()> {
         self.write(Command::set_color(&color))?;
         Ok(())
     }
 
-    fn is_valid_profile_id(&self, id: usize) -> Result<(), &'static str> {
-        if id >= self.dpi_profiles.len() {
-            return Err("Invalid Profile ID");
+    fn validate_dpi_profile_id(&self, id: u8) -> MouseResult<usize> {
+        let i = Into::<usize>::into(id);
+        if i >= self.dpi_profiles.len() {
+            return Err(MouseError::InvalidDPIProfile);
         }
-        Ok(())
+        Ok(i)
     }
 
-    fn set_dpi_for_profile(&mut self, id: u8, dpi: u8) -> RusbResult<()> {
-        let i = Into::<usize>::into(id);
-
-        self.is_valid_profile_id(i).unwrap();
-
+    fn set_dpi_for_profile(&mut self, id: u8, dpi: u8) -> MouseResult<()> {
+        let i = self.validate_dpi_profile_id(id)?;
         self.write(Command::set_dpi_profile_dpi(id, dpi))?;
-
         self.dpi_profiles[i].dpi = dpi;
         Ok(())
     }
 
-    fn set_color_for_profile(&mut self, id: u8, color: [u8; 3]) -> RusbResult<()> {
-        let i = Into::<usize>::into(id);
-
-        self.is_valid_profile_id(i).unwrap();
-
+    fn set_color_for_profile(&mut self, id: u8, color: [u8; 3]) -> MouseResult<()> {
+        let i = self.validate_dpi_profile_id(id)?;
         self.write(Command::set_dpi_profile_color(id, color))?;
-
         self.dpi_profiles[i].color = color;
         Ok(())
     }
 
-    fn persist(&mut self) -> RusbResult<()> {
+    fn persist(&mut self) -> MouseResult<()> {
         self.write(Command::persist())?;
         Ok(())
     }
 
-    pub fn perform_action(&mut self, action: MouseAction) -> RusbResult<()> {
+    pub fn perform_action(&mut self, action: MouseAction) -> MouseResult<()> {
         self.detach()?;
         match action {
             MouseAction::SetColor(c) => self.set_color(c),
