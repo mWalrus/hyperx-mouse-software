@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Command {
     pub data: Vec<u8>,
 }
@@ -35,6 +36,16 @@ impl Command {
 
     pub fn set_polling_rate(rate: u8) -> Self {
         Self::construct(vec![0xd0, 0x00, 0x00, 0x01, rate])
+    }
+
+    pub fn set_gradient_part(part: u8, colors: [[u8; 3]; 20]) -> Self {
+        let mut data = vec![0xda, 0x78, part, 0x3c];
+        for color in colors {
+            for channel in color {
+                data.push(channel);
+            }
+        }
+        Self::construct(data)
     }
 
     pub fn set_low_power_warn(percentage: u8) -> Self {
