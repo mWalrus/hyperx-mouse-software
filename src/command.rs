@@ -36,4 +36,8 @@ impl Command {
     pub fn set_polling_rate(rate: u8) -> Self {
         Self::construct(vec![0xd0, 0x00, 0x00, 0x01, rate])
     }
+
+    pub fn set_low_power_warn(percentage: u8) -> Self {
+        Self::construct(vec![0xd1, 0x00, 0x00, 0x01, percentage])
+    }
 }

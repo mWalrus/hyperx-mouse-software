@@ -29,6 +29,7 @@ pub enum MouseAction {
     SetDPIProfileDPI(u8, u8),
     SetDPIProfileColor(u8, [u8; 3]),
     SetPollingRate(PollingRate),
+    SetLowPowerWarn(u8),
     Persist,
 }
 
@@ -39,6 +40,7 @@ pub struct Mouse<C: UsbContext> {
     pub iface: u8,
     pub dpi_profiles: [DPIProfile; 4],
     pub polling_rate: PollingRate,
+    pub power_warn_at: u8,
 }
 
 #[derive(Clone, Copy)]
@@ -79,6 +81,7 @@ impl<C: UsbContext> Mouse<C> {
                 },
             ],
             polling_rate: PollingRate::Hz1000,
+            power_warn_at: 10, // percentage
         }
     }
 
@@ -148,6 +151,13 @@ impl<C: UsbContext> Mouse<C> {
         Ok(())
     }
 
+    fn set_low_power_warn(&mut self, mut percentage: u8) -> MouseResult<()> {
+        percentage = percentage.min(25).max(1);
+        self.write(Command::set_low_power_warn(percentage))?;
+        self.power_warn_at = percentage;
+        Ok(())
+    }
+
     fn persist(&mut self) -> MouseResult<()> {
         self.write(Command::persist())?;
         Ok(())
@@ -161,6 +171,7 @@ impl<C: UsbContext> Mouse<C> {
             MouseAction::SetDPIProfileDPI(id, dpi) => self.set_dpi_for_profile(id, dpi),
             MouseAction::SetDPIProfileColor(id, color) => self.set_color_for_profile(id, color),
             MouseAction::SetPollingRate(rate) => self.set_polling_rate(rate),
+            MouseAction::SetLowPowerWarn(bat_percentage) => self.set_low_power_warn(bat_percentage),
             _ => Ok(()),
         }?;
         self.release()?;
