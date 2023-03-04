@@ -1,5 +1,6 @@
 mod command;
 mod mouse;
+mod polling_rate;
 
 use mouse::Mouse;
 use rusb::{Context, UsbContext};

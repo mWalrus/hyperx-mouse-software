@@ -32,4 +32,8 @@ impl Command {
     pub fn set_dpi_profile_color(id: u8, color: [u8; 3]) -> Self {
         Self::construct(vec![0xd3, 0x03, id, 0x03, color[0], color[1], color[2]])
     }
+
+    pub fn set_polling_rate(rate: u8) -> Self {
+        Self::construct(vec![0xd0, 0x00, 0x00, 0x01, rate])
+    }
 }

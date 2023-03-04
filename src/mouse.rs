@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::command::Command;
+use crate::{command::Command, polling_rate::PollingRate};
 use rusb::{Device, DeviceDescriptor, DeviceHandle, UsbContext};
 use thiserror::Error;
 
@@ -28,6 +28,7 @@ pub enum MouseAction {
     SetColor([u8; 3]),
     SetDPIProfileDPI(u8, u8),
     SetDPIProfileColor(u8, [u8; 3]),
+    SetPollingRate(PollingRate),
     Persist,
 }
 
@@ -37,6 +38,7 @@ pub struct Mouse<C: UsbContext> {
     pub handle: DeviceHandle<C>,
     pub iface: u8,
     pub dpi_profiles: [DPIProfile; 4],
+    pub polling_rate: PollingRate,
 }
 
 #[derive(Clone, Copy)]
@@ -76,6 +78,7 @@ impl<C: UsbContext> Mouse<C> {
                     dpi: 0x20,
                 },
             ],
+            polling_rate: PollingRate::Hz1000,
         }
     }
 
@@ -139,6 +142,12 @@ impl<C: UsbContext> Mouse<C> {
         Ok(())
     }
 
+    fn set_polling_rate(&mut self, rate: PollingRate) -> MouseResult<()> {
+        self.write(Command::set_polling_rate(rate as u8))?;
+        self.polling_rate = rate;
+        Ok(())
+    }
+
     fn persist(&mut self) -> MouseResult<()> {
         self.write(Command::persist())?;
         Ok(())
@@ -151,6 +160,7 @@ impl<C: UsbContext> Mouse<C> {
             MouseAction::Persist => self.persist(),
             MouseAction::SetDPIProfileDPI(id, dpi) => self.set_dpi_for_profile(id, dpi),
             MouseAction::SetDPIProfileColor(id, color) => self.set_color_for_profile(id, color),
+            MouseAction::SetPollingRate(rate) => self.set_polling_rate(rate),
             _ => Ok(()),
         }?;
         self.release()?;
