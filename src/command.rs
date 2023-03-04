@@ -13,10 +13,10 @@ impl Command {
         Self { data }
     }
 
-    pub fn set_color(color: &[u8; 3]) -> Self {
+    pub fn set_color(color: [u8; 3], opacity: u8) -> Self {
         Self::construct(vec![
             0xd2, 0x00, 0x00, 0x08, color[0], color[1], color[2], color[0], color[1], color[2],
-            0x64,
+            opacity,
         ])
     }
 

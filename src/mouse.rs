@@ -25,7 +25,7 @@ pub enum MouseError {
 type MouseResult<T> = Result<T, MouseError>;
 
 pub enum MouseAction {
-    SetColor([u8; 3]),
+    SetColor([u8; 3], u8),
     SetDPIProfileDPI(u8, u8),
     SetDPIProfileColor(u8, [u8; 3]),
     SetPollingRate(PollingRate),
@@ -118,8 +118,8 @@ impl<C: UsbContext> Mouse<C> {
         Ok(())
     }
 
-    fn set_color(&mut self, color: [u8; 3]) -> MouseResult<()> {
-        self.write(Command::set_color(&color))?;
+    fn set_color(&mut self, color: [u8; 3], opacity: u8) -> MouseResult<()> {
+        self.write(Command::set_color(color, opacity))?;
         Ok(())
     }
 
@@ -166,7 +166,7 @@ impl<C: UsbContext> Mouse<C> {
     pub fn perform_action(&mut self, action: MouseAction) -> MouseResult<()> {
         self.detach()?;
         match action {
-            MouseAction::SetColor(c) => self.set_color(c),
+            MouseAction::SetColor(c, o) => self.set_color(c, o),
             MouseAction::Persist => self.persist(),
             MouseAction::SetDPIProfileDPI(id, dpi) => self.set_dpi_for_profile(id, dpi),
             MouseAction::SetDPIProfileColor(id, color) => self.set_color_for_profile(id, color),
