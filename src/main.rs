@@ -1,3 +1,4 @@
+#[macro_use]
 mod command;
 mod mouse;
 mod polling_rate;
