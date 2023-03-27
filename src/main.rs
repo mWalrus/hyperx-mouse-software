@@ -6,7 +6,11 @@ mod polling_rate;
 use mouse::Mouse;
 use rusb::{Context, UsbContext};
 
-use crate::mouse::{MouseAction, MouseError};
+use crate::{
+    command::Command,
+    mouse::{MouseAction, MouseError},
+    polling_rate::PollingRate,
+};
 
 const ID_VENDOR: u16 = 0x03f0;
 const ID_PRODUCT: u16 = 0x048e;
@@ -24,15 +28,43 @@ fn main() {
                     mouse.descriptor.product_id()
                 );
                 let mut perform_mouse_actions = || -> Result<(), MouseError> {
-                    mouse.perform_action(MouseAction::SetColor(COLOR))?;
-                    // profile 2
-                    mouse.perform_action(MouseAction::SetDPIProfileDPI(0x01, 0x04))?;
+                    mouse.perform_action(MouseAction::SetColor(COLOR, 0x64))?;
+                    mouse.perform_action(MouseAction::SetDPIProfileDPI(0x01, 0x08))?;
+                    mouse.perform_action(MouseAction::SetPollingRate(PollingRate::Hz500))?;
+                    mouse.perform_action(MouseAction::SetLowPowerWarn(10))?;
                     mouse.perform_action(MouseAction::SetDPIProfileColor(
                         0x01,
                         [0xf4, 0x78, 0x35],
                     ))?;
 
                     mouse.perform_action(MouseAction::Persist)?;
+                    let cmd = Command::set_gradient_part(
+                        0x00,
+                        [
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                            [0xff, 0xb0, 0xde],
+                        ],
+                    );
+
+                    println!("{cmd:02x?}");
                     Ok(())
                 };
 
